@@ -1,0 +1,53 @@
+
+[
+
+    {
+	"ann-name": "Xor",
+	"ann-description" : "Outputs 1 if inputs are opposite, else 0.",
+	"layers" :
+	[
+	    {
+		"layer-id" : 0,
+		"num-neurons" : 2,
+		"firing-function" : "input"
+	    },
+	    {
+		"layer-id" : 1,
+		"layer-type" : "bias",
+		"num-neurons" : 2,
+		"firing-function" : "input"
+	    },
+	    {
+		"layer-id" : 2,
+		"num-neurons" : 2,
+		"firing-function" : "sigmoid",
+		"neurons" :
+		[
+		    {
+			"neuron-id" : 0,
+			"firing-function" : "input",
+			"synapses",
+			[
+			    "neuron-from" : [0, 0],
+			    "weight" : 4.78
+			]
+		    },
+		    {
+			"neuron-from" : [0, 1],
+			"weight" : -2.35
+		    },
+		    {
+			"neuron-from" : [1, 0],
+			"weight" : 2.35
+		    }
+		]
+
+	    }
+	]
+    },
+
+    {
+	"ann-name" : "Parity",
+	"ann-description" : "Detects parity in input"
+    }
+]
