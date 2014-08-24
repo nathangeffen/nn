@@ -1,7 +1,7 @@
 [{
 		"ann-name":	"XOR",
 		"layers":	[{
-				"layer-id":	1,
+				"layer-id":	0,
 				"neurons":	[{
 						"neuron-id":	1,
 						"firing-function":	"input"
@@ -10,26 +10,26 @@
 						"firing-function":	"input"
 					}]
 			}, {
-				"layer-id":	3,
+				"layer-id":	1,
 				"neurons":	[{
 						"neuron-id":	0,
 						"firing-function":	"bias"
 					}]
 			}, {
-				"layer-id":	5,
+				"layer-id":	2,
 				"neurons":	[{
 						"neuron-id":	1,
 						"firing-function":	"sigmoid",
 						"synapses":	[{
-								"layer-from":	1,
+								"layer-from":	0,
 								"neuron-from":	0,
 								"weight":	-4.830000
 							}, {
-								"layer-from":	1,
+								"layer-from":	0,
 								"neuron-from":	1,
 								"weight":	4.830000
 							}, {
-								"layer-from":	3,
+								"layer-from":	1,
 								"neuron-from":	0,
 								"weight":	-2.820000
 							}]
@@ -37,34 +37,34 @@
 						"neuron-id":	0,
 						"firing-function":	"sigmoid",
 						"synapses":	[{
-								"layer-from":	1,
+								"layer-from":	0,
 								"neuron-from":	0,
 								"weight":	4.600000
 							}, {
-								"layer-from":	1,
+								"layer-from":	0,
 								"neuron-from":	1,
 								"weight":	-4.630000
 							}, {
-								"layer-from":	3,
+								"layer-from":	1,
 								"neuron-from":	0,
 								"weight":	-2.740000
 							}]
 					}]
 			}, {
-				"layer-id":	7,
+				"layer-id":	3,
 				"neurons":	[{
 						"neuron-id":	0,
 						"firing-function":	"sigmoid",
 						"synapses":	[{
-								"layer-from":	3,
+								"layer-from":	1,
 								"neuron-from":	0,
 								"weight":	-2.860000
 							}, {
-								"layer-from":	5,
+								"layer-from":	2,
 								"neuron-from":	0,
 								"weight":	5.830000
 							}, {
-								"layer-from":	5,
+								"layer-from":	2,
 								"neuron-from":	1,
 								"weight":	5.730000
 							}]

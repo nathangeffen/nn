@@ -9,7 +9,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <assert.h>
 #include <math.h>
 #include <string.h>
@@ -28,10 +27,7 @@ struct ann_net *ann_create_net(void)
 	ann = malloc(sizeof(*ann));
 	ANN_CHECK(ann, "Cannot allocate neural network.", return NULL);
 	ann->name = ann->description = NULL;
-	ANN_CHECK(ann_set_net_name(ann, "Untitled"), "Setting name to nothing",
-		  ann->name = NULL);
-	ANN_CHECK(ann_set_net_description(ann, ""),
-		  "Setting description to nothing", ann->description = NULL);
+	ann->free_name = ann->free_description = false;
 	ann->layer_head = ann->layer_last = NULL;
 	ann->min_weight = MIN_WEIGHT;
 	ann->max_weight = MAX_WEIGHT;
@@ -52,6 +48,7 @@ char *ann_set_net_name(struct ann_net *ann, const char *name)
 	strcpy(c, name);
 	if (ann->name) free(ann->name);
 	ann->name = c;
+	ann->free_name = true;
 	return c;
 }
 
@@ -62,6 +59,7 @@ char *ann_set_net_description(struct ann_net *ann, const char *desc)
 	strcpy(c, desc);
 	if (ann->description) free(ann->description);
 	ann->description = c;
+	ann->free_description = true;
 	return c;
 }
 
@@ -158,6 +156,7 @@ struct ann_synapse *ann_add_synapse(struct ann_neuron *from,
 	// Create the synapse
 	synapse = malloc(sizeof(*synapse));
 	ANN_CHECK(synapse, "Cannot allocate synapse.", return NULL);
+	synapse->label = NULL;
 	synapse->from = from;
 	synapse->to = to;
 	synapse->id = from->synapse_ctr++;
@@ -332,6 +331,7 @@ struct ann_neuron *ann_create_neuron()
 	neuron->layer = NULL;
 	neuron->inputs = NULL;
 	neuron->outputs = NULL;
+	neuron->label = NULL;
 	neuron->id = 0;
 	neuron->value = 0.0;
 	return neuron;
@@ -550,6 +550,7 @@ struct ann_layer *ann_create_layer(struct ann_layer *prev,
 
 	layer = malloc(sizeof(*layer));
 	ANN_CHECK(layer, "Cannot allocate layer.", return NULL);
+	layer->label = NULL;
 	layer->neuron_ctr = layer->num_neurons = 0;
 	layer->prev = prev;
 	layer->next = next;
@@ -630,7 +631,6 @@ struct ann_layer *ann_add_layer(struct ann_net *ann)
 	layer = ann_create_layer(ann->layer_last, NULL, ann->rng,
 				 ann->min_weight, ann->max_weight);
 	ANN_CHECK(layer, "Could not add layer.", return NULL);
-	ann->layer_ctr++;
 	layer->id = ann->layer_ctr++;
 	++ann->num_layers;
 	if (ann->layer_last == NULL)
@@ -781,8 +781,8 @@ void ann_destroy_net(struct ann_net *ann)
 {
 	struct ann_layer *it, *next;
 
-	if (ann->name) free(ann->name);
-	if (ann->description) free(ann->description);
+	if (ann->free_name) free(ann->name);
+	if (ann->free_description) free(ann->description);
 
 	gsl_rng_free(ann->rng);
 	for (it = ann->layer_head; it != NULL; it = next) {
@@ -866,26 +866,29 @@ bool ann_traverse_net(const struct ann_net *ann,
 
 bool ann_print_synapse(const struct ann_synapse *synapse, void *data)
 {
-	printf("\t\tSynapse to neuron:\t(%d,%d)\t%.2f\n",
+	printf("Synapse connected to layer %d neuron %d: %.2f",
 	       synapse->to->layer->id, synapse->to->id, synapse->weight);
+	if (synapse->label)
+		printf(" %s", synapse->label);
+	printf("\n");
 	return true;
 }
 
 bool ann_print_neuron(const struct ann_neuron *neuron, void *data)
 {
-	printf("\tNeuron\t(%d,%d)\t%.2f\n",
-	       neuron->layer->id, neuron->id, neuron->value);
+	printf("Neuron %d", neuron->id);
+	if (neuron->label)
+		printf(" %s", neuron->label);
+	printf("\n");
 	return true;
 }
 
 bool ann_print_layer(const struct ann_layer *layer, void *data)
 {
-	if (layer->prev == NULL)
-		printf("Input layer\t(%d)\n", layer->id);
-	else if (layer->next == NULL)
-		printf("Output layer\t(%d)\n", layer->id);
-	else
-		printf("Hidden layer\t(%d)\n", layer->id);
+	printf("Layer %d", layer->id);
+	if (layer->label)
+		printf(": %s", layer->label);
+	printf("\n");
 	return true;
 }
 
@@ -898,9 +901,9 @@ bool ann_print_layer(const struct ann_layer *layer, void *data)
 
 void ann_print_net(const struct ann_net *ann)
 {
-	printf("Neural network:\t%s\n\n", ann->name);
+	printf("Neural network:\t%s\n", ann->name);
 	if (strlen(ann->description))
-		printf("%s\n\n", ann->description);
+		printf("%s\n", ann->description);
 	ann_traverse_net(ann, ann_print_layer, ann_print_neuron, NULL,
 			 ann_print_synapse, NULL);
 }

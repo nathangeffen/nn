@@ -12,9 +12,11 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <time.h>
+#include <math.h>
 #include "nn/nn.h"
+#include "test.h"
 
-void stress ()
+void stress()
 {
 	struct ann_net *ann;
 	int layers[] = {2560, 2560, 2000, 1000, 1000,  2000}, i, j;
@@ -47,17 +49,24 @@ void stress ()
 
 int main(int argc, char *argv[])
 {
-	struct ann_net *ann;
+	struct ann_net *ann, **ann_arr;
 	struct ann_layer *output_layer, *layer, *bias_layer;
 	struct ann_neuron *neuron;
+	struct test_series *t;
 	FILE *f;
 	int num_nets;
-
 	int layers[] = {2, 2, 1};
 	double patterns[][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
 
+	t = test_init("Test ann", true, NULL);
+	if (t == NULL) {
+		fprintf(stderr, "Cannot start testing.");
+		return EXIT_FAILURE;
+	}
+
 	ann = ann_create_feed_forward_net(layers, 3);
-	assert(ann_check_net(ann));
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after create feed forward", "%d");
 
 	// Set bias connections
 	ann_set_synapse_weight(ann_get_synapse(ann_get_neuron_by_pos(ann, 1, 0),
@@ -89,144 +98,270 @@ int main(int argc, char *argv[])
 	ann_set_synapse_weight(ann_get_synapse(ann_get_neuron_by_pos(ann, 2, 1),
 					       ann_get_neuron_by_pos(ann, 3, 0)),
 			       5.83);
-	printf("***************\n");
-	assert(ann_check_net(ann));
-	printf("PRINTING FIRST NET.\n");
-	ann_print_net(ann);
-	printf("FINISHED PRINTING FIRST NET.\n");
-	for (int i = 0; i < 4; ++i) {
-		output_layer = ann_process_pattern(ann, patterns[i], 2);
-		printf("*************************\n"
-		       "Pattern\t%d:", i);
-		for (int j = 0; j < 2; ++j)
-			printf("\t%.2f", patterns[i][j]);
-		printf("\n");
-		ann_print_layer_outputs(output_layer);
-	}
 	ann_set_net_name(ann, "XOR");
-	assert(f = fopen("ann.json", "w"));
-	assert(ann_save(f, &ann, 1));
+	TESTEQ(t, ann_check_net(ann), true, "valid net", "%d");
+
+	for (int i = 0; i < 4; ++i) {
+		output_layer = ann_process_pattern(ann, patterns[i], 2);
+		TESTEQ(t, output_layer->num_neurons, 1,
+		       "Number neurons in output layer.", "%d")
+		switch(i) {
+		case 0:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.1),
+			       0.01, "Xor 0 0 == 0.1", "%f");
+			break;
+		case 1:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.9),
+			       0.01, "Xor 0 1 == 0.9", "%f");
+			break;
+		case 2:
+			TESTLT(t, output_layer->neuron_head->value - 0.9,
+			       0.01, "Xor 1 0 == 0.9", "%f");
+			break;
+		case 3:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.1),
+			       0.01,  "Xor 0 0 == 0.1", "%f");
+			break;
+		}
+	}
+	f = fopen("ann.json", "w");
+	if (f == NULL) {
+		fprintf(stderr, "Cannot open json file for writing.\n");
+		return EXIT_FAILURE;
+	}
+
+	/* Test JSON save and load. */
+	TESTEQ(t, ann_save(f, &ann, 1), true,
+	       "Save ann.", "%d");
 	fclose(f);
-	assert(ann_save_nets_bin("output.bin", &ann, 1));
 	ann_destroy_net(ann);
-	assert(f = fopen("ann.json", "rb"));
-
-	printf("********************\n");
-	printf("Loading and reprinting net\n");
-	struct ann_net **ann_arr;
-	assert(ann_arr = ann_load(f, &num_nets));
-	assert(num_nets == 1);
-	fclose(f);
-	ann_check_net(ann_arr[0]);
-	ann_print_net(ann_arr[0]);
+	f = fopen("ann.json", "r");
+	if (f == NULL) {
+		fprintf(stderr, "Cannot open json file for reading.\n");
+		return EXIT_FAILURE;
+	}
+	ann_arr = ann_load(f, &num_nets);
+	TESTEQ(t, num_nets, 1, "Number of nets equals 1.", "%d");
 	ann = ann_arr[0];
-	printf("********************\n");
+	TESTEQ(t, ann_check_net(ann), true, "valid net after json load", "%d");
 	for (int i = 0; i < 4; ++i) {
 		output_layer = ann_process_pattern(ann, patterns[i], 2);
-		printf("*************************\n"
-		       "Pattern\t%d:", i);
-		for (int j = 0; j < 2; ++j)
-			printf("\t%.2f", patterns[i][j]);
-		printf("\n");
-		ann_print_layer_outputs(output_layer);
+		TESTEQ(t, output_layer->num_neurons, 1,
+		       "Number neurons in output layer.", "%d")
+		switch(i) {
+		case 0:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.1),
+			       0.01, "Xor 0 0 == 0.1", "%f");
+			break;
+		case 1:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.9),
+			       0.01, "Xor 0 1 == 0.9", "%f");
+			break;
+		case 2:
+			TESTLT(t, output_layer->neuron_head->value - 0.9,
+			       0.01, "Xor 1 0 == 0.9", "%f");
+			break;
+		case 3:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.1),
+			       0.01,  "Xor 0 0 == 0.1", "%f");
+			break;
+		}
 	}
-	printf("********************\n");
+
+	/* Test save and load from binary file. */
+
+	TESTEQ(t, ann_save_nets_bin("output.bin", ann_arr, 1), true,
+	       "Saved net to binary file.", "%d");
 	ann_destroy_net(ann_arr[0]);
-	free(ann_arr);
-
-	printf("********************\n");
-	printf("Loading and reprinting net from binary file\n");
-
-	assert(ann_arr = ann_load_nets_bin("output.bin", &num_nets));
-	assert(num_nets == 1);
-	ann_check_net(ann_arr[0]);
-	ann_print_net(ann_arr[0]);
+	ann_arr = ann_load_nets_bin("output.bin", &num_nets);
+	TESTEQ(t, num_nets, 1, "Number of nets equals 1.", "%d");
 	ann = ann_arr[0];
-	printf("********************\n");
+	TESTEQ(t, ann_check_net(ann), true, "valid net after json load", "%d");
 	for (int i = 0; i < 4; ++i) {
 		output_layer = ann_process_pattern(ann, patterns[i], 2);
-		printf("*************************\n"
-		       "Pattern\t%d:", i);
-		for (int j = 0; j < 2; ++j)
-			printf("\t%.2f", patterns[i][j]);
-		printf("\n");
-		ann_print_layer_outputs(output_layer);
+		TESTEQ(t, output_layer->num_neurons, 1,
+		       "Number neurons in output layer.", "%d")
+		switch(i) {
+		case 0:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.1),
+			       0.01, "Xor 0 0 == 0.1", "%f");
+			break;
+		case 1:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.9),
+			       0.01, "Xor 0 1 == 0.9", "%f");
+			break;
+		case 2:
+			TESTLT(t, output_layer->neuron_head->value - 0.9,
+			       0.01, "Xor 1 0 == 0.9", "%f");
+			break;
+		case 3:
+			TESTLT(t, fabs(output_layer->neuron_head->value - 0.1),
+			       0.01,  "Xor 0 0 == 0.1", "%f");
+			break;
+		}
 	}
-	printf("********************\n");
 	ann_destroy_net(ann_arr[0]);
 	free(ann_arr);
-
-
-	printf("***************\nInitialising second net\n");
 
 	// Create net
 	ann = ann_create_net();
-	assert(ann_check_net(ann));
+	ann->name = "Multilayered feedforward neural network";
+	ann->description = "Test network for libnn";
+	TESTEQ(t, ann_check_net(ann), true, "Valid net after create.", "%d");
 
 	// Create input layer
 	layer = ann_add_layer(ann);
-	assert(layer);
-	assert(ann_check_net(ann));
+	if (layer == NULL) {
+		fprintf(stderr, "Cannot create layer.x\n");
+		return EXIT_FAILURE;
+	}
+	layer->label = "input";
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after input layer created.", "%d");
 
 	// Create two input layer neurons
 	neuron = ann_add_neurons(layer, 2, ann_neuron_fire_input, NULL);
-	assert(neuron);
-	assert(ann_check_net(ann));
+	if (neuron == NULL) {
+		fprintf(stderr, "Cannot create input neurons.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after input neurons created.", "%d");
 
 	// Create bias layer
 	bias_layer = ann_add_layer(ann);
-	assert(bias_layer);
-	assert(ann_check_net(ann));
+	if (bias_layer == NULL) {
+		fprintf(stderr, "Cannot create input neurons.\n");
+		return EXIT_FAILURE;
+	}
+	bias_layer->label = "bias";
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after bias layer created.", "%d");
+
 
 	// Create bias neuron
-	neuron = ann_add_neurons(layer, 1, ann_neuron_fire_bias, NULL);
-	assert(neuron);
-	assert(ann_check_net(ann));
+	neuron = ann_add_neurons(bias_layer, 1, ann_neuron_fire_bias, NULL);
+	if (neuron == NULL) {
+		fprintf(stderr, "Cannot create bias neuron.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after bias neuron created.", "%d");
 
-	// Create hidden layer
+	// Create first hidden layer
 	layer = ann_add_layer(ann);
-	assert(layer);
-	assert(ann_check_net(ann));
+	if (layer == NULL) {
+		fprintf(stderr, "Cannot create first hidden layer.\n");
+		return EXIT_FAILURE;
+	}
+	layer->label = "first hidden layer";
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after first hidden layer created.", "%d");
 
 	// Create two hidden layer neurons
 	neuron = ann_add_neurons(layer, 2, ann_neuron_fire_sigmoid, NULL);
-	assert(neuron);
-	assert(ann_check_net(ann));
+	if (neuron == NULL) {
+		fprintf(stderr, "Cannot create first hidden layer neurons.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after first layer hidden neurons created.", "%d");
 
 	// Connect bias to hidden layer neurons
-	assert(ann_connect_layers(bias_layer, layer));
-	assert(ann_check_net(ann));
+	if (ann_connect_layers(bias_layer, layer) == false) {
+		fprintf(stderr, "Cannot connect bias to first hidden layer");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after bias connected to first hidden layer.", "%d");
 
 	// Connect input layer (layer->prev->prev) to hidden layer
-	assert(ann_connect_layers(layer->prev->prev, layer));
-	assert(ann_check_net(ann));
+	if (ann_connect_layers(layer->prev->prev, layer) == false) {
+		fprintf(stderr, "Cannot connect input layer to hidden layer.");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after input connected to first hidden layer.", "%d");
+
+
+	// Create second hidden layer
+	layer = ann_add_layer(ann);
+	if (layer == NULL) {
+		fprintf(stderr, "Cannot create second hidden layer.\n");
+		return EXIT_FAILURE;
+	}
+	layer->label = "second hidden layer";
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after second hidden layer created.", "%d");
+
+	// Create two second layer hidden layer neurons
+	neuron = ann_add_neurons(layer, 3, ann_neuron_fire_sigmoid, NULL);
+	if (neuron == NULL) {
+		fprintf(stderr, "Cannot create second hidden layer neurons.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after second layer hidden neurons created.", "%d");
+
+	// Connect bias to second hidden layer neurons
+	if (ann_connect_layers(bias_layer, layer) == false) {
+		fprintf(stderr, "Cannot connect bias to second hidden layer.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after bias connected to second hidden layer.", "%d");
+
+	// Connect first hidden layer to second hidden layer
+	if (ann_connect_layers(layer->prev, layer) == false) {
+		fprintf(stderr, "Cannot connect hidden layers.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after hidden layers connected.", "%d");
 
 	// Create output layer
 	layer = ann_add_layer(ann);
-	assert(layer);
-	assert(ann_check_net(ann));
+	if (layer == NULL) {
+		fprintf(stderr, "Cannot create output layer.\n");
+		return EXIT_FAILURE;
+	}
+	layer->label = "output";
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after output layer created.", "%d");
 
-	// Create output layer neuron
-	neuron = ann_add_neuron(layer, ann_neuron_fire_sigmoid, NULL);
-	assert(neuron);
-	assert(ann_check_net(ann));
+	// Create output neurons
+	neuron = ann_add_neurons(layer, 2, ann_neuron_fire_sigmoid, NULL);
+	if (neuron == NULL) {
+		fprintf(stderr, "Cannot create output neurons.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after output neurons created.", "%d");
 
-	// Connect bias to output layer neuron
-	assert(ann_connect_layers(bias_layer, layer));
-	assert(ann_check_net(ann));
+	// Connect bias to output neurons
+	if (ann_connect_layers(bias_layer, layer) == false) {
+		fprintf(stderr, "Cannot connect bias to output layer.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after bias connected to output layer.", "%d");
 
-	// Connect hidden layer to output layer
-	assert(ann_connect_layers(layer->prev, layer)); //layer->prev is hidden
-	assert(ann_check_net(ann));
+	// Connect second hidden layer to output neurons
+	if (ann_connect_layers(layer->prev, layer) == false) {
+		fprintf(stderr, "Cannot connect hidden to output layer.\n");
+		return EXIT_FAILURE;
+	}
+	TESTEQ(t, ann_check_net(ann), true,
+	       "Valid net after hidden layer connected to output layer.", "%d");
 
-	printf("*****\n");
-	printf("Printing second net.\n");
+
 	ann_print_net(ann);
-	printf("*****\n");
+
 
 	ann_destroy_net(ann);
 
-	stress();
+	/* stress(); */
 
+	test_summary(t);
 	return 0;
 }

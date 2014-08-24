@@ -14,16 +14,16 @@
 #define ANN_H
 
 #include <gsl/gsl_rng.h>
-#include "uthash/uthash.h"
-
-// Handles errors. If exp is true then no error, else print msg and take action.
-
-
-#ifndef bool
+#if __STDC_VERSION__ >= 199901L
+#include <stdbool.h>
+#else
 #define bool int
 #define false 0
 #define true 1
 #endif
+#include "uthash/uthash.h"
+
+// Handles errors. If exp is true then no error, else print msg and take action.
 
 
 /* Firing functions */
@@ -59,6 +59,7 @@ struct ann_net;
 
 struct ann_synapse {
 	int id; ///< Unique identifier of synapse.
+	char *label; ///< Optional label
 	struct ann_neuron *from; ///< Neuron from which synapse comes.
 	struct ann_neuron *to; ///< Neuron to which synapse goes.
 	double weight; ///< Weight of the synapse.
@@ -79,6 +80,7 @@ struct ann_synapse_list {
 
 struct ann_neuron {
 	int id; ///< With layer id, a unique identifier of neuron.
+	char *label; ///< Optional label
 	int synapse_ctr; ///< Used to set id of output synapses.
 	struct ann_layer *layer;
 	struct ann_neuron *next; ///< Neurons are stored in layers as lists.
@@ -105,6 +107,7 @@ struct ann_neuron_hash {
 
 struct ann_layer {
 	int id; ///< Unique identifier of this layer.
+	char *label; ///< Optional label
 	int neuron_ctr; ///< Used to assign unique id to each neuron in layer.
 	int num_neurons; ///< Tracks number of neurons in layer.
 	struct ann_layer *prev; ///< Pointer to previous layer.
@@ -122,6 +125,8 @@ struct ann_layer {
 struct ann_net {
 	char *name; ///< Name of network. "Untitled" by default.
 	char *description; ///< Description of network. Empty string by default.
+	bool free_name;
+	bool free_description;
 	int layer_ctr; ///< Used to assign unique id to each layer in network.
 	int num_layers; ///< Tracks number of layers in network.
 	struct ann_layer *layer_head; ///< List of layers in the network.

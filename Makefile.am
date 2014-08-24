@@ -6,13 +6,13 @@
 ## files, in order to avoid collisions when non-recursive make is used.
 
 AUTOMAKE_OPTIONS = subdir-objects
-AM_CFLAGS = -std=c99
+AM_CFLAGS = -std=c99 -Wall -Werror -pedantic
 
 ACLOCAL_AMFLAGS = -I m4
 
 lib_LTLIBRARIES = libnn-@NN_API_VERSION@.la
-libnn_@NN_API_VERSION@_la_SOURCES = nn/nn.c nn/nn.h nn/io.c nn/cJSON/cJSON.c
-	nn/cJSON.h uthash/uthash.h
+libnn_@NN_API_VERSION@_la_SOURCES = nn/nn.c nn/nn.h nn/io.c \
+	nn/cJSON/cJSON.c nn/cJSON/cJSON.h uthash/uthash.h
 libnn_@NN_API_VERSION@_la_CFLAGS = $(GSL_CFLAGS) -std=c99
 libnn_@NN_API_VERSION@_la_LDFLAGS = -version-info $(NN_SO_VERSION) $(GSL_LIBS)
 

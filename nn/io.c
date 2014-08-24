@@ -465,16 +465,24 @@ ann_save_net_bin(FILE *f,
 	int i;
 
 	/* First save all information except the synapses. */
-	i = strlen(ann->name);
+	if (ann->name)
+		i = strlen(ann->name);
+	else
+		i = 0;
 	if (fwrite(&i, sizeof(int), 1, f) == 0)
 		return false;
-	if (i && fwrite(ann->name, sizeof(char), i, f) == 0)
-		return false;
-	i = strlen(ann->description);
+	if (i)
+		if (fwrite(ann->name, sizeof(char), i, f) == 0)
+			return false;
+	if (ann->description)
+		i = strlen(ann->description);
+	else
+		i = 0;
 	if (fwrite(&i, sizeof(int), 1, f) == 0)
 		return false;
-	if (i && fwrite(ann->description, sizeof(char), i, f) == 0)
-		return false;
+	if (i)
+		if (fwrite(ann->description, sizeof(char), i, f) == 0)
+			return false;
 	if (fwrite(&ann->num_layers, sizeof(int), 1, f) == 0)
 		return false;
 	if (ann_save_layers_bin(f, ann->layer_head) == false)
@@ -664,26 +672,30 @@ ann_load_net_bin(FILE *f)
 	/* ANN name */
 	if (fread(&i, sizeof(int), 1, f) == 0)
 		goto fail_destroy;
-	s = malloc(sizeof(char) * (i + 1) );
-	if (s == NULL)
-		goto fail_destroy;
-	if (fread(s, sizeof(char), i, f) < i)
-		goto fail_str;
-	s[i] = '\0';
-	ann_set_net_name(ann, s);
-	free(s);
+	if (i) {
+		s = malloc(sizeof(char) * (i + 1) );
+		if (s == NULL)
+			goto fail_destroy;
+		if (fread(s, sizeof(char), i, f) < i)
+			goto fail_str;
+		s[i] = '\0';
+		ann_set_net_name(ann, s);
+		free(s);
+	}
 
 	/* ANN description */
 	if (fread(&i, sizeof(int), 1, f) == 0)
 		goto fail_destroy;
-	s = malloc(sizeof(char) * (i + 1) );
-	if (s == NULL)
-		goto fail_destroy;
-	if (fread(s, sizeof(char), i, f) < i)
-		goto fail_str;
-	s[i] = '\0';
-	ann_set_net_description(ann, s);
-	free(s);
+	if (i) {
+		s = malloc(sizeof(char) * (i + 1) );
+		if (s == NULL)
+			goto fail_destroy;
+		if (fread(s, sizeof(char), i, f) < i)
+			goto fail_str;
+		s[i] = '\0';
+		ann_set_net_description(ann, s);
+		free(s);
+	}
 
 	if (ann_load_layers_bin(f, ann, &hash) == false)
 		goto fail_destroy;
